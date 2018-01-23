@@ -6,10 +6,17 @@ using System.Threading.Tasks;
 
 namespace FileTool
 {
+    public class Worker
+    {
+
+    }
+
     class Program
     {
         static void Main(string[] args)
         {
+            var w = new Worker();
+
         }
     }
 }
