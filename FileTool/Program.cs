@@ -127,12 +127,51 @@ namespace FileTool
         public bool ExcludeFirsrDigit;
         public string AddExtension;
         public string TargetDirectory;
+
+        private string RootDir;
+        /// <summary>
+        /// Выполнить обработку файлов
+        /// </summary>
+        public void Process()
+        {
+            if (string.IsNullOrWhiteSpace(Settings.CommandParameter.StartDirectory))
+            {
+                // Возвращает каталог без последней обратной черты
+                RootDir = Directory.GetCurrentDirectory();
+            } else
+            {
+                RootDir = Settings.CommandParameter.StartDirectory;
+            }
+
+            //Console.WriteLine(RootDir);
+            // получает строки с полным именем файла
+            var Files = Directory.EnumerateFiles(RootDir, MainExtension, SearchOption.AllDirectories);
+            foreach(var someFilename in Files)
+            {
+                var lastpos = someFilename.LastIndexOf('\\');
+                var fname = someFilename.Substring(lastpos+1);
+                var fdir = someFilename.Remove(lastpos);
+
+                //todo сделать объект хранения файла, совпадение последнего каталога проверять фунцкций EndWith имена переводить в маленькие буквы
+
+
+            }
+
+        }
     }
 
     public class Worker
     {
         public void Run()
         {
+            switch (Settings.CommandParameter.Command)
+            {
+                case "CmdMoveFile":
+                    {
+                        Settings.CommandParameter.CmdMoveFile.Process();
+                        break;
+                    }
+            }
 
         }
 
