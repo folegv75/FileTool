@@ -11,6 +11,7 @@ namespace FileTool
     public static class Settings
     {
         public static WorkParameter CommandParameter;
+
         public static bool ReadSettings(string pFilename, out string pErrorMessage)
         {
             if (!File.Exists(pFilename))
@@ -35,6 +36,7 @@ namespace FileTool
                 try
                 {
                     string Data = stream.ReadToEnd();
+
                     CommandParameter = JsonConvert.DeserializeObject<WorkParameter>(Data);
                 }
                 catch (Exception ex)
@@ -55,6 +57,7 @@ namespace FileTool
             {
                 try
                 {
+                    if (CommandParameter==null) CommandParameter = new WorkParameter(true);
                     string Data = JsonConvert.SerializeObject(CommandParameter, Formatting.Indented);
                     stream.Write(Data);
                 }
@@ -75,6 +78,19 @@ namespace FileTool
     /// </summary>
     public class WorkParameter
     {
+        public WorkParameter()
+        {
+
+        }
+
+        public WorkParameter(bool pInit)
+        {
+            if (!pInit) return;
+            Command = "CmdName";
+            StartDirectory = "";
+            CmdMoveFile = new CmdMoveFile(true);
+        }
+
         /// <summary>
         /// команда обработки
         /// </summary>
@@ -83,6 +99,34 @@ namespace FileTool
         /// стартовый каталог запуска. Если не заполнен, то используется текущий каталог
         /// </summary>
         public string StartDirectory;
+        public CmdMoveFile CmdMoveFile;
+    }
+
+    /// <summary>
+    /// Команда CmdMoveFile
+    /// Команды выполняет поиск файлов с указанным расширением MainExtension к текущем каталоге
+    /// Исключаются файлы которые начинаются с цифры 
+    /// К найденному списку файлов дополняется файлы которые также называются как в списке, но имеет другое указанное расширение
+    /// Если эти файлы не находятся в указанном каталоге, то в текущем каталоге создается каталог и 
+    /// Файлы из списка перемещаются в этот каталог
+    /// Класс содержит параметры для Команды CmdMoveFile перемещения файлов в каталог
+    /// </summary>
+    public class CmdMoveFile
+    {
+        public CmdMoveFile() { }
+        public CmdMoveFile(bool pInit)
+        {
+            if (!pInit) return;
+            MainExtension = "*.flac";
+            ExcludeFirsrDigit = true;
+            AddExtension = "*.cue";
+            TargetDirectory = "RIP";
+        }
+    
+        public string MainExtension;
+        public bool ExcludeFirsrDigit;
+        public string AddExtension;
+        public string TargetDirectory;
     }
 
     public class Worker
