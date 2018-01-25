@@ -130,6 +130,10 @@ namespace FileTool
         /// Порядковый номер файла в каталоге
         /// </summary>
         public int Order;
+        /// <summary>
+        /// Целевой каталог, в который будет перемещен файл
+        /// </summary>
+        public string TargetDir;
 
         public List<FilenameInfo> LinkedFiles = new List<FilenameInfo>();
 
@@ -182,7 +186,8 @@ namespace FileTool
             MakeWorkList();
             MakeAddList();
             CreateDir();
-            //todo создание каталогов, перенос файлов
+            MoveFile();
+            //todo перенос файлов
 
         }
 
@@ -251,6 +256,9 @@ namespace FileTool
             }
         }
 
+        /// <summary>
+        /// Создание каталогов
+        /// </summary>
         private void CreateDir()
         {
             foreach(var someInfo in WorkList)
@@ -263,11 +271,34 @@ namespace FileTool
                 if (Settings.CommandParameter.CmdMoveFile.TargetDirectory.StartsWith("\\"))
                     RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory.Substring(1);
                 else RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory;
-
-                Directory.CreateDirectory(LeftDirectory + "\\" + RightDirectory);
+                string targetDir = LeftDirectory + "\\" + RightDirectory;
+                if (someInfo.Order>0)
+                {
+                    RightDirectory = string.Format("CD{0:d}", someInfo.Order);
+                    if (targetDir.EndsWith("\\")) targetDir += RightDirectory;
+                    else targetDir +="\\" + RightDirectory;
+                }
+                someInfo.TargetDir = targetDir;
+                Directory.CreateDirectory(targetDir);
             }
         }
 
+        /// <summary>
+        /// Перемещение файлов
+        /// </summary>
+        private void MoveFile()
+        {
+            foreach(var mainFile in WorkList)
+            {
+                File.Move(mainFile.Fullname,mainFile.TargetDir+"\\"+mainFile.Name);
+                foreach(var someLinkFile in mainFile.LinkedFiles)
+                {
+                    File.Move(someLinkFile.Fullname, mainFile.TargetDir + "\\" + someLinkFile.Name);
+
+                }
+
+            }
+        }
     }
 
     public class Worker
