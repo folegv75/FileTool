@@ -16,8 +16,7 @@ namespace FileTool
         {
             if (!File.Exists(pFilename))
             {
-                string saveErrorMessage;
-                    var Res = SaveSettings(pFilename, out saveErrorMessage);
+                var Res = SaveSettings(pFilename, out string saveErrorMessage);
                 if (Res)
                 {
                     pErrorMessage = $"Файл не найден: {pFilename}. Файл создан.";
@@ -116,6 +115,14 @@ namespace FileTool
         /// </summary>
         public string Fullname;
         /// <summary>
+        /// Содержит имя файла без каталога и без расширения
+        /// </summary>
+        public string NameOnly;
+        /// <summary>
+        /// Содержит только расширение файла без точки
+        /// </summary>
+        public string Extension;
+        /// <summary>
         /// Содержит только каталог файла
         /// </summary>
         public string Directory;
@@ -124,12 +131,17 @@ namespace FileTool
         /// </summary>
         public int Order;
 
+        public List<FilenameInfo> LinkedFiles = new List<FilenameInfo>();
+
         public FilenameInfo(string pFilename)
         {
             Fullname = pFilename;
             int lastpos = pFilename.LastIndexOf('\\');
             Name = pFilename.Substring(lastpos + 1);
             Directory = pFilename.Remove(lastpos);
+            lastpos = Name.LastIndexOf('.');
+            NameOnly = Name.Remove(lastpos);
+            Extension = Name.Substring(lastpos + 1);
         }
 
     }
@@ -167,11 +179,24 @@ namespace FileTool
         /// </summary>
         public void Process()
         {
+            MakeWorkList();
+            MakeAddList();
+            CreateDir();
+            //todo создание каталогов, перенос файлов
+
+        }
+
+        /// <summary>
+        /// Формирует список файлов для перемещения
+        /// </summary>
+        private void MakeWorkList()
+        {
             if (string.IsNullOrWhiteSpace(Settings.CommandParameter.StartDirectory))
             {
                 // Возвращает каталог без последней обратной черты
                 RootDir = Directory.GetCurrentDirectory();
-            } else
+            }
+            else
             {
                 RootDir = Settings.CommandParameter.StartDirectory;
             }
@@ -180,20 +205,20 @@ namespace FileTool
             // получает строки с полным именем файла
             var Files = Directory.EnumerateFiles(RootDir, MainExtension, SearchOption.AllDirectories);
             WorkList = new List<FilenameInfo>();
-            foreach(var someFilename in Files)
+            foreach (var someFilename in Files)
             {
                 var someInfo = new FilenameInfo(someFilename);
                 if (Settings.CommandParameter.CmdMoveFile.ExcludeFirstDigit)
                 {
                     if (char.IsDigit(someInfo.Name[0])) continue;
-                    if (someInfo.Directory.EndsWith((Settings.CommandParameter.CmdMoveFile.TargetDirectory), StringComparison.OrdinalIgnoreCase)) continue;
+                    if (someInfo.Directory.EndsWith(Settings.CommandParameter.CmdMoveFile.TargetDirectory, StringComparison.OrdinalIgnoreCase)) continue;
                     WorkList.Add(someInfo);
                 }
 
             }
             // Ищем каталоги в которых найдено более одного файла
-            var S = from A in WorkList group A by A.Directory into G select new { Name = G.Key, Kolvo = G.Count() } ;
-            foreach(var some in S)
+            var S = from A in WorkList group A by A.Directory into G select new { Name = G.Key, Kolvo = G.Count() };
+            foreach (var some in S)
             {
                 if (some.Kolvo == 1) continue;
                 var Many = from A in WorkList where A.Directory == some.Name select A;
@@ -205,9 +230,44 @@ namespace FileTool
                 }
             }
 
-            //todo поиск связанных файлов по расширению, создание каталогов, перенос файлов
-
         }
+
+        /// <summary>
+        /// Формирует список дополнительных файлов, которые будут перемещаться вместе с основным
+        /// Поиск по указанному расширению.
+        /// </summary>
+        private void MakeAddList()
+        {
+            if (WorkList.Count() == 0) return;
+            if (string.IsNullOrWhiteSpace(Settings.CommandParameter.CmdMoveFile.AddExtension)) return;
+            foreach (var someFileInfo in WorkList)
+            {
+                var AddFiles = Directory.EnumerateFiles(someFileInfo.Directory, Settings.CommandParameter.CmdMoveFile.AddExtension, SearchOption.TopDirectoryOnly);
+                foreach(var someFilename in AddFiles)
+                {
+                    var AddInfo = new FilenameInfo(someFilename);
+                    if (AddInfo.NameOnly.StartsWith(someFileInfo.NameOnly,StringComparison.OrdinalIgnoreCase)) someFileInfo.LinkedFiles.Add(AddInfo);
+                }
+            }
+        }
+
+        private void CreateDir()
+        {
+            foreach(var someInfo in WorkList)
+            {
+                string LeftDirectory;
+                string RightDirectory;
+                if (someInfo.Directory.EndsWith("\\")) LeftDirectory = someInfo.Directory.Remove(someInfo.Directory.Length - 1);
+                else LeftDirectory = someInfo.Directory;
+
+                if (Settings.CommandParameter.CmdMoveFile.TargetDirectory.StartsWith("\\"))
+                    RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory.Substring(1);
+                else RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory;
+
+                Directory.CreateDirectory(LeftDirectory + "\\" + RightDirectory);
+            }
+        }
+
     }
 
     public class Worker
@@ -232,13 +292,12 @@ namespace FileTool
         static void Main(string[] args)
 
         {
-            string ErrorMessage;
-            if (args.Count()<1)
+            if (args.Count() < 1)
             {
                 Console.WriteLine("Укажите в параметрах json файл с командами обработки");
                 return;
             }
-            if (!Settings.ReadSettings(args[0], out ErrorMessage))
+            if (!Settings.ReadSettings(args[0], out string ErrorMessage))
             {
                 Console.WriteLine(ErrorMessage);
                 return;
