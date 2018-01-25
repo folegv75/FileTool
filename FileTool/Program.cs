@@ -103,7 +103,39 @@ namespace FileTool
     }
 
     /// <summary>
-    /// Команда CmdMoveFile
+    /// Информация о пути файла
+    /// </summary>
+    public class FilenameInfo
+    {
+        /// <summary>
+        /// Содержит только наименование файла
+        /// </summary>
+        public string Name;
+        /// <summary>
+        /// Содержит полный путь файла
+        /// </summary>
+        public string Fullname;
+        /// <summary>
+        /// Содержит только каталог файла
+        /// </summary>
+        public string Directory;
+        /// <summary>
+        /// Порядковый номер файла в каталоге
+        /// </summary>
+        public int Order;
+
+        public FilenameInfo(string pFilename)
+        {
+            Fullname = pFilename;
+            int lastpos = pFilename.LastIndexOf('\\');
+            Name = pFilename.Substring(lastpos + 1);
+            Directory = pFilename.Remove(lastpos);
+        }
+
+    }
+
+    /// <summary>
+    /// Команда CmdMoveFile - перемещение файлов в каталог
     /// Команды выполняет поиск файлов с указанным расширением MainExtension к текущем каталоге
     /// Исключаются файлы которые начинаются с цифры 
     /// К найденному списку файлов дополняется файлы которые также называются как в списке, но имеет другое указанное расширение
@@ -118,17 +150,18 @@ namespace FileTool
         {
             if (!pInit) return;
             MainExtension = "*.flac";
-            ExcludeFirsrDigit = true;
+            ExcludeFirstDigit = true;
             AddExtension = "*.cue";
             TargetDirectory = "RIP";
         }
     
         public string MainExtension;
-        public bool ExcludeFirsrDigit;
+        public bool ExcludeFirstDigit;
         public string AddExtension;
         public string TargetDirectory;
 
         private string RootDir;
+        private List<FilenameInfo> WorkList;
         /// <summary>
         /// Выполнить обработку файлов
         /// </summary>
@@ -146,16 +179,33 @@ namespace FileTool
             //Console.WriteLine(RootDir);
             // получает строки с полным именем файла
             var Files = Directory.EnumerateFiles(RootDir, MainExtension, SearchOption.AllDirectories);
+            WorkList = new List<FilenameInfo>();
             foreach(var someFilename in Files)
             {
-                var lastpos = someFilename.LastIndexOf('\\');
-                var fname = someFilename.Substring(lastpos+1);
-                var fdir = someFilename.Remove(lastpos);
-
-                //todo сделать объект хранения файла, совпадение последнего каталога проверять фунцкций EndWith имена переводить в маленькие буквы
-
+                var someInfo = new FilenameInfo(someFilename);
+                if (Settings.CommandParameter.CmdMoveFile.ExcludeFirstDigit)
+                {
+                    if (char.IsDigit(someInfo.Name[0])) continue;
+                    if (someInfo.Directory.EndsWith((Settings.CommandParameter.CmdMoveFile.TargetDirectory), StringComparison.OrdinalIgnoreCase)) continue;
+                    WorkList.Add(someInfo);
+                }
 
             }
+            // Ищем каталоги в которых найдено более одного файла
+            var S = from A in WorkList group A by A.Directory into G select new { Name = G.Key, Kolvo = G.Count() } ;
+            foreach(var some in S)
+            {
+                if (some.Kolvo == 1) continue;
+                var Many = from A in WorkList where A.Directory == some.Name select A;
+                int Order = 1;
+                foreach (var someMany in Many)
+                {
+                    someMany.Order = Order;
+                    Order++;
+                }
+            }
+
+            //todo поиск связанных файлов по расширению, создание каталогов, перенос файлов
 
         }
     }
