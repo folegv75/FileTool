@@ -8,6 +8,11 @@ using System.Threading.Tasks;
 
 namespace FileTool
 {
+    public static class ConstantValue
+    {
+        public static readonly string[] FileAction = { "CreateDir" ,"MoveFile", "SaveToFile" };
+    }
+
     public static class Settings
     {
         public static WorkParameter CommandParameter;
@@ -56,7 +61,7 @@ namespace FileTool
             {
                 try
                 {
-                    if (CommandParameter==null) CommandParameter = new WorkParameter(true);
+                    if (CommandParameter == null) CommandParameter = new WorkParameter(true);
                     string Data = JsonConvert.SerializeObject(CommandParameter, Formatting.Indented);
                     stream.Write(Data);
                 }
@@ -77,28 +82,99 @@ namespace FileTool
     /// </summary>
     public class WorkParameter
     {
+        /// <summary>
+        /// стартовый каталог запуска. Если не заполнен, то используется текущий каталог
+        /// </summary>
+        public string StartDirectory;
+        /// <summary>
+        /// Параметры отбора файлов для обработки
+        /// </summary>
+        public Filter Filter;
+        /// <summary>
+        /// Действие обработки
+        /// </summary>
+        public List<FileAction> FileActionList;
+        /// </summary>
+        /// 
+
         public WorkParameter()
         {
 
         }
 
+        /// <summary>
+        /// конструктор для инициализации примеров значений
+        /// </summary>
+        /// <param name="pInit">true- инициализировать значения</param>
         public WorkParameter(bool pInit)
         {
             if (!pInit) return;
-            Command = "CmdName";
             StartDirectory = "";
-            CmdMoveFile = new CmdMoveFile(true);
+            Filter = new Filter(true);
+            FileActionList = new List<FileAction>();
+            FileActionList.Add(new FileAction(true));
         }
+    }
 
+    /// <summary>
+    /// Определение фильтра файлов
+    /// </summary>
+    public class Filter
+    {
+        /// <summary>
+        /// Основная маска фильтра (расширение), по которому отбираем файлы
+        /// </summary>
+        public string MainExtension;
+        /// <summary>
+        /// Признак, исключить файлы, которые начинаются с цифры
+        /// </summary>
+        public bool ExcludeFirstDigit;
+        /// <summary>
+        /// Исключить файл, если он находится в каталоге ExcludeParentDir 
+        /// </summary>
+        public string ExcludeParentDir;
+        /// <summary>
+        /// Маска фильтра (расширение), файлы которые отбираются на равенство имени с основным списком
+        /// </summary>
+        public string AddExtension;
+
+        public Filter() { }
+        public Filter(bool pInit)
+        {
+            if (!pInit) return;
+            MainExtension = "*.flac";
+            ExcludeFirstDigit = true;
+            ExcludeParentDir = "RIP";
+            AddExtension = "*.cue";
+        }
+    }
+
+    /// <summary>
+    /// Определяет действие над выборкой файлов
+    /// </summary>
+    public class FileAction
+    {
         /// <summary>
         /// команда обработки
         /// </summary>
         public string Command;
         /// <summary>
-        /// стартовый каталог запуска. Если не заполнен, то используется текущий каталог
+        /// Целевой каталог для выполнения действия (например, для действия MoveFile файлы перемещаются в каталог TargetDirectory
         /// </summary>
-        public string StartDirectory;
-        public CmdMoveFile CmdMoveFile;
+        public string TargetDirectory;
+        /// <summary>
+        /// Имя файла, в который будет выводится список файлов
+        /// </summary>
+        public string SaveFilename;
+
+        public FileAction() { }
+        public FileAction(bool pInit)
+        {
+            if (!pInit) return;
+            Command = "MoveFile||SaveToFile";
+            TargetDirectory = "RIP";
+            SaveFilename = "filelist.txt";
+        }
     }
 
     /// <summary>
@@ -159,74 +235,94 @@ namespace FileTool
     /// Файлы из списка перемещаются в этот каталог
     /// Класс содержит параметры для Команды CmdMoveFile перемещения файлов в каталог
     /// </summary>
-    public class CmdMoveFile
+    public class Worker
     {
-        public CmdMoveFile() { }
-        public CmdMoveFile(bool pInit)
-        {
-            if (!pInit) return;
-            MainExtension = "*.flac";
-            ExcludeFirstDigit = true;
-            AddExtension = "*.cue";
-            TargetDirectory = "RIP";
-        }
-    
-        public string MainExtension;
-        public bool ExcludeFirstDigit;
-        public string AddExtension;
-        public string TargetDirectory;
-
-        private string RootDir;
+        private WorkParameter WorkParameter;
         private List<FilenameInfo> WorkList;
+
+        public Worker(WorkParameter pWorkParameter)
+        {
+            WorkParameter = pWorkParameter;
+        }
+
+
+        private string StartRootDir;
+
         /// <summary>
         /// Выполнить обработку файлов
         /// </summary>
         public void Process()
         {
-            MakeWorkList();
-            MakeAddList();
-            CreateDir();
-            MoveFile();
-            //todo перенос файлов
+            if (string.IsNullOrWhiteSpace(Settings.CommandParameter.StartDirectory))
+            {
+                // Возвращает каталог без последней обратной черты
+                StartRootDir = Directory.GetCurrentDirectory();
+            }
+            else
+            {
+                StartRootDir = WorkParameter.StartDirectory;
+            }
 
+            WorkList = MakeWorkList(WorkParameter.Filter, StartRootDir);
+            MakeAddList(WorkParameter.Filter, WorkList);
+            foreach(var someAction in WorkParameter.FileActionList)
+            {
+                switch (someAction.Command)
+                {
+                    case "CreateDir":
+                        CreateDir(someAction, WorkList);
+                        break;
+                    case "MoveFile":
+                        MoveFile(someAction, WorkList);
+                        break;
+                    case "SaveToFile":
+                        SaveToFile(someAction, WorkList);
+                        break;
+                }
+            }
+            
+        }
+
+        private void SaveToFile(FileAction pFileAction, List<FilenameInfo> pWorkList)
+        {
+
+            using (StreamWriter sw = new StreamWriter(pFileAction.SaveFilename))
+            {
+                foreach (var someMainFile in pWorkList)
+                {
+                    sw.WriteLine(someMainFile.Fullname);
+                    foreach(var linkFile in someMainFile.LinkedFiles)
+                        sw.WriteLine("        "+linkFile.Fullname);
+                }
+            }
         }
 
         /// <summary>
         /// Формирует список файлов для перемещения
         /// </summary>
-        private void MakeWorkList()
+        private List<FilenameInfo> MakeWorkList(Filter pFilter, string RootDir)
         {
-            if (string.IsNullOrWhiteSpace(Settings.CommandParameter.StartDirectory))
-            {
-                // Возвращает каталог без последней обратной черты
-                RootDir = Directory.GetCurrentDirectory();
-            }
-            else
-            {
-                RootDir = Settings.CommandParameter.StartDirectory;
-            }
 
-            //Console.WriteLine(RootDir);
             // получает строки с полным именем файла
-            var Files = Directory.EnumerateFiles(RootDir, MainExtension, SearchOption.AllDirectories);
-            WorkList = new List<FilenameInfo>();
+            var Files = Directory.EnumerateFiles(RootDir, pFilter.MainExtension, SearchOption.AllDirectories);
+            var workList = new List<FilenameInfo>();
             foreach (var someFilename in Files)
             {
                 var someInfo = new FilenameInfo(someFilename);
-                if (Settings.CommandParameter.CmdMoveFile.ExcludeFirstDigit)
+                if (pFilter.ExcludeFirstDigit)
                 {
                     if (char.IsDigit(someInfo.Name[0])) continue;
-                    if (someInfo.Directory.EndsWith(Settings.CommandParameter.CmdMoveFile.TargetDirectory, StringComparison.OrdinalIgnoreCase)) continue;
-                    WorkList.Add(someInfo);
+                    if (someInfo.Directory.EndsWith(pFilter.ExcludeParentDir, StringComparison.OrdinalIgnoreCase)) continue;
+                    workList.Add(someInfo);
                 }
 
             }
             // Ищем каталоги в которых найдено более одного файла
-            var S = from A in WorkList group A by A.Directory into G select new { Name = G.Key, Kolvo = G.Count() };
+            var S = from A in workList group A by A.Directory into G select new { Name = G.Key, Kolvo = G.Count() };
             foreach (var some in S)
             {
                 if (some.Kolvo == 1) continue;
-                var Many = from A in WorkList where A.Directory == some.Name select A;
+                var Many = from A in workList where A.Directory == some.Name select A;
                 int Order = 1;
                 foreach (var someMany in Many)
                 {
@@ -234,6 +330,7 @@ namespace FileTool
                     Order++;
                 }
             }
+            return workList;
 
         }
 
@@ -241,13 +338,13 @@ namespace FileTool
         /// Формирует список дополнительных файлов, которые будут перемещаться вместе с основным
         /// Поиск по указанному расширению.
         /// </summary>
-        private void MakeAddList()
+        private void MakeAddList(Filter pFilter, List<FilenameInfo> pWorkList)
         {
-            if (WorkList.Count() == 0) return;
-            if (string.IsNullOrWhiteSpace(Settings.CommandParameter.CmdMoveFile.AddExtension)) return;
-            foreach (var someFileInfo in WorkList)
+            if (pWorkList.Count() == 0) return;
+            if (string.IsNullOrWhiteSpace(pFilter.AddExtension)) return;
+            foreach (var someFileInfo in pWorkList)
             {
-                var AddFiles = Directory.EnumerateFiles(someFileInfo.Directory, Settings.CommandParameter.CmdMoveFile.AddExtension, SearchOption.TopDirectoryOnly);
+                var AddFiles = Directory.EnumerateFiles(someFileInfo.Directory, pFilter.AddExtension, SearchOption.TopDirectoryOnly);
                 foreach(var someFilename in AddFiles)
                 {
                     var AddInfo = new FilenameInfo(someFilename);
@@ -259,18 +356,18 @@ namespace FileTool
         /// <summary>
         /// Создание каталогов
         /// </summary>
-        private void CreateDir()
+        private void CreateDir(FileAction pFileAction, List<FilenameInfo> pWorkList)
         {
-            foreach(var someInfo in WorkList)
+            foreach(var someInfo in pWorkList)
             {
                 string LeftDirectory;
                 string RightDirectory;
                 if (someInfo.Directory.EndsWith("\\")) LeftDirectory = someInfo.Directory.Remove(someInfo.Directory.Length - 1);
                 else LeftDirectory = someInfo.Directory;
 
-                if (Settings.CommandParameter.CmdMoveFile.TargetDirectory.StartsWith("\\"))
-                    RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory.Substring(1);
-                else RightDirectory = Settings.CommandParameter.CmdMoveFile.TargetDirectory;
+                if (pFileAction.TargetDirectory.StartsWith("\\"))
+                    RightDirectory = pFileAction.TargetDirectory.Substring(1);
+                else RightDirectory = pFileAction.TargetDirectory;
                 string targetDir = LeftDirectory + "\\" + RightDirectory;
                 if (someInfo.Order>0)
                 {
@@ -286,38 +383,20 @@ namespace FileTool
         /// <summary>
         /// Перемещение файлов
         /// </summary>
-        private void MoveFile()
+        private void MoveFile(FileAction pFileAction, List<FilenameInfo> pWorkList)
         {
-            foreach(var mainFile in WorkList)
+            foreach(var mainFile in pWorkList)
             {
                 File.Move(mainFile.Fullname,mainFile.TargetDir+"\\"+mainFile.Name);
                 foreach(var someLinkFile in mainFile.LinkedFiles)
                 {
                     File.Move(someLinkFile.Fullname, mainFile.TargetDir + "\\" + someLinkFile.Name);
-
                 }
 
             }
         }
     }
 
-    public class Worker
-    {
-        public void Run()
-        {
-            switch (Settings.CommandParameter.Command)
-            {
-                case "CmdMoveFile":
-                    {
-                        Settings.CommandParameter.CmdMoveFile.Process();
-                        break;
-                    }
-            }
-
-        }
-
-    }
- 
     class Program
     {
         static void Main(string[] args)
@@ -333,8 +412,8 @@ namespace FileTool
                 Console.WriteLine(ErrorMessage);
                 return;
             }
-            var w = new Worker();
-            w.Run();
+            var w = new Worker(Settings.CommandParameter);
+            w.Process();
         }
     }
 }
