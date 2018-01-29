@@ -103,7 +103,6 @@ namespace FileTool
                         CheckExistCueTrack(someAction, WorkList);
                         break;
                 }
-                //qwerty
             }
 
         }
@@ -275,10 +274,25 @@ namespace FileTool
                 {
                     mainFile.CheckValue = true;
                     string trackFilename = string.Format("{0:00}. {1}", someTrack.TrackNumber, someTrack.Title);
-                    //TODO заменить недопутимые сивмволы cue файлов на "_". Недопустимые символы ";","\"
-                    trackFilename = trackFilename.Replace(':', '_');
+                    //TODO заменить недопутимые сивмволы cue файлов на "_". Недопустимые символы 
+                    //  \ — разделитель подкаталогов
+                    //  / — разделитель ключей командного интерпретатора
+                    //  : — отделяет букву диска или имя альтернативного потока данных
+                    //  * — заменяющий символ(маска «любое количество любых символов»)
+                    //  ? — заменяющий символ(маска «один любой символ»)
+                    //  " — используется для указания путей, содержащих пробелы
+                    //  < — перенаправление ввода
+                    //  > — перенаправление вывода
+                    //  | — обозначает конвейер
                     trackFilename = trackFilename.Replace('/', '_');
                     trackFilename = trackFilename.Replace('\\', '_');
+                    trackFilename = trackFilename.Replace(':', '_');
+                    trackFilename = trackFilename.Replace('*', '_');
+                    trackFilename = trackFilename.Replace('?', '_');
+                    trackFilename = trackFilename.Replace('"', '_');
+                    trackFilename = trackFilename.Replace('>', '_');
+                    trackFilename = trackFilename.Replace('<', '_');
+                    trackFilename = trackFilename.Replace('|', '_');
                     var Z = from a in mainFile.LinkedFiles where a.NameOnly == trackFilename select a;
                     // Найдем в подчиненных файлах, файл с именем равным trackFilename
                     // Не найдено совпадений установим флаг ошибки
