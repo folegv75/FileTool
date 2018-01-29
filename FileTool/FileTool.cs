@@ -273,8 +273,9 @@ namespace FileTool
                 foreach(var someTrack in mainFile.CueSheet.Tracks)
                 {
                     mainFile.CheckValue = true;
-                    string trackFilename = string.Format("{0:00}. {1}", someTrack.TrackNumber, someTrack.Title);
-                    //TODO заменить недопутимые сивмволы cue файлов на "_". Недопустимые символы 
+                    // Убереме концевые проблемы, т.к. в файлах они убираюися
+                    string trackFilename = string.Format("{0:00}. {1}", someTrack.TrackNumber, someTrack.Title.TrimEnd());
+                    // Замена Недопустимые символов. Также не должно быть пробелов в начале и конце имени файла
                     //  \ — разделитель подкаталогов
                     //  / — разделитель ключей командного интерпретатора
                     //  : — отделяет букву диска или имя альтернативного потока данных
