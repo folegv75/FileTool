@@ -70,6 +70,10 @@ namespace FileTool
         /// Просоединять ли доп файлы, если совпадает начало имени файла
         /// </summary>
         public bool JoinByName;
+        /// <summary>
+        /// Полное имя исходного файла, является источником данных
+        /// </summary>
+        public string SourceFilename;
 
         public FileAction() { }
         public FileAction(bool pInit)
@@ -89,7 +93,7 @@ namespace FileTool
     public class FilenameInfo
     {
         /// <summary>
-        /// Содержит только наименование файла
+        /// Содержит только наименование файла и расширение
         /// </summary>
         public string Name;
         /// <summary>
@@ -134,8 +138,15 @@ namespace FileTool
             Name = pFilename.Substring(lastpos + 1);
             Directory = pFilename.Remove(lastpos);
             lastpos = Name.LastIndexOf('.');
-            NameOnly = Name.Remove(lastpos);
-            Extension = Name.Substring(lastpos + 1);
+            if (lastpos >= 0)
+            {
+                NameOnly = Name.Remove(lastpos);
+                Extension = Name.Substring(lastpos + 1);
+            } else {
+                NameOnly = Name;
+                Extension = "";
+
+            }
         }
 
     }

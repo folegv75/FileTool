@@ -87,7 +87,6 @@ namespace FileTool
                         MakeWorkList(someAction, WorkList);
                         break;
                     case "MakeAddList":
-                        //todo
                         MakeAddList(someAction, WorkList);
                         break;
                     case "CreateDir":
@@ -102,11 +101,64 @@ namespace FileTool
                     case "CheckExistCueTrack":
                         CheckExistCueTrack(someAction, WorkList);
                         break;
+                    case "SaveToFileCSV":
+                        SaveToFileCSV(someAction, WorkList);
+                        break;
+                    case "RenameByFileCSV":
+                        RenameByFileCSV(someAction);
+                        break;
+
                 }
             }
 
         }
 
+
+        /// <summary>
+        /// Переименовывает файлы по указанному списку. Первым идет иисходный файл, через ; новой имя файла
+        /// Если файл уже существует, то он пропускается
+        /// </summary>
+        /// <param name="pFileAction"></param>
+        /// <param name="pWorkList"></param>
+        private void RenameByFileCSV(FileAction pFileAction)
+        {
+
+
+            using (StreamReader sr = new StreamReader(pFileAction.SourceFilename))
+            {
+                string inputLine;
+                inputLine = sr.ReadLine();
+                while (inputLine != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(inputLine))
+                    {
+                        var Pos = inputLine.IndexOf(';');
+                        if (Pos >= 0)
+                        {
+                            var SourceName = inputLine.Substring(0, Pos - 1).Trim();
+                            var TargetName = inputLine.Substring(Pos + 1).Trim();
+                            if (File.Exists(SourceName))
+                            {
+                                FilenameInfo fi = new FilenameInfo(SourceName);
+                                var TargetFullname = fi.Directory + "\\" + TargetName;
+                                if (!File.Exists(TargetFullname))
+                                {
+                                    File.Move(SourceName, TargetFullname);
+                                }
+                            }
+                            else Console.WriteLine("Not found: {SourceName}");
+                        }
+                    }
+                    inputLine = sr.ReadLine();
+                }
+            }
+        }
+
+        /// <summary>
+        /// Записывает полное наименование файлов в указанный файл
+        /// </summary>
+        /// <param name="pFileAction"></param>
+        /// <param name="pWorkList"></param>
         private void SaveToFile(FileAction pFileAction, List<FilenameInfo> pWorkList)
         {
 
@@ -124,6 +176,28 @@ namespace FileTool
             }
         }
 
+        /// <summary>
+        /// Записывает полное наименованеи файлов и имя файла в формата в формате csv
+        /// </summary>
+        /// <param name="pFileAction"></param>
+        /// <param name="pWorkList"></param>
+        private void SaveToFileCSV(FileAction pFileAction, List<FilenameInfo> pWorkList)
+        {
+
+            using (StreamWriter sw = new StreamWriter(pFileAction.SaveFilename))
+            {
+                foreach (var someMainFile in pWorkList)
+                {
+                    // проверим результат предыдущей проверки
+                    if (pFileAction.UseCheck)
+                        if (someMainFile.CheckValue != pFileAction.CheckValue) continue;
+
+                    sw.WriteLine($"{someMainFile.Fullname.PadRight(180, ' ')};{someMainFile.Name}");
+                    foreach (var linkFile in someMainFile.LinkedFiles)
+                        sw.WriteLine("        " + linkFile.Fullname);
+                }
+            }
+        }
         /// <summary>
         /// Формирует список файлов для перемещения
         /// </summary>
@@ -190,17 +264,17 @@ namespace FileTool
                 catch
                 {
                 }
-                if (AddFiles!=null)
-                foreach (var someFilename in AddFiles)
-                {
-                    var AddInfo = new FilenameInfo(someFilename);
-                    if (pFileAction.JoinByName)
+                if (AddFiles != null)
+                    foreach (var someFilename in AddFiles)
                     {
-                        if (AddInfo.NameOnly.StartsWith(someFileInfo.NameOnly, StringComparison.OrdinalIgnoreCase)) someFileInfo.LinkedFiles.Add(AddInfo);
-                    }
-                    else someFileInfo.LinkedFiles.Add(AddInfo);
+                        var AddInfo = new FilenameInfo(someFilename);
+                        if (pFileAction.JoinByName)
+                        {
+                            if (AddInfo.NameOnly.StartsWith(someFileInfo.NameOnly, StringComparison.OrdinalIgnoreCase)) someFileInfo.LinkedFiles.Add(AddInfo);
+                        }
+                        else someFileInfo.LinkedFiles.Add(AddInfo);
 
-                }
+                    }
             }
         }
 
@@ -266,11 +340,11 @@ namespace FileTool
         {
             foreach (var mainFile in pWorkList)
             {
-                if (mainFile.CueSheet==null)
+                if (mainFile.CueSheet == null)
                 {
                     mainFile.CheckValue = false;
                 }
-                foreach(var someTrack in mainFile.CueSheet.Tracks)
+                foreach (var someTrack in mainFile.CueSheet.Tracks)
                 {
                     mainFile.CheckValue = true;
                     // Убереме концевые проблемы, т.к. в файлах они убираюися
