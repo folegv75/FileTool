@@ -126,7 +126,7 @@ namespace FileTool
 
             using (StreamReader sr = new StreamReader(pFileAction.SourceFilename))
             {
-                string inputLine;
+                string inputLine; 
                 inputLine = sr.ReadLine();
                 while (inputLine != null)
                 {
