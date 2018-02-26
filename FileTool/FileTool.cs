@@ -115,11 +115,31 @@ namespace FileTool
                     case "RenameByDirCSV":
                         RenameByDirCSV(someAction);
                         break;
+                    case "Renumber":
+                        Renumber(someAction, WorkList);
+                        break;
 
                 }
             }
 
         }
+
+        /// <summary>
+        /// Перенумеровать файлы. Список файлов считывается по указанным параметрам. Сортируются по имени и нумерация выставляется заново.
+        /// Файлы должны уже иметь нумерацию. Если длина номера меньше, то добавляется 0 в начала. Для сортировки используются 4 цифры в имени, при выводе 2 цифры.
+        /// </summary>
+        /// <param name="pFileAction"></param>
+        /// <param name="pWorkList"></param>
+        private void Renumber(FileAction pFileAction, List<FilenameInfo> pWorkList)
+        {
+            foreach (var mainFile in pWorkList)
+            {
+                if (mainFile.IsDirectory) continue;
+
+            }
+        }
+
+
 
         /// <summary>
         /// Переименовывает каталоги по указанному списку. Первым идет иисходное имя каталога файл, через ; новой имя каталога
@@ -385,15 +405,7 @@ namespace FileTool
             }
         }
 
-        /// <summary>
-        /// Переименовать каталог, в котором находится файл, если проверка была успешна
-        /// </summary>
-        /// <param name="pFileAction"></param>
-        /// <param name="pWorkList"></param>
-        private void RenameDir(FileAction pFileAction, List<FilenameInfo> pWorkList)
-        {
 
-        }
 
         /// <summary>
         /// Проверить наличие файлов указанные в cue файле
