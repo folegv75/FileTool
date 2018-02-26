@@ -83,7 +83,7 @@ namespace FileTool
             Filter = new Filter(true);
 
             TargetDirectory = "RIP";
-            SaveFilename = "filelist.txt";
+            SaveFilename = "filelist.txt"; 
         }
     }
 
