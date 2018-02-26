@@ -92,6 +92,7 @@ namespace FileTool
     /// </summary>
     public class FilenameInfo
     {
+        public bool IsDirectory;
         /// <summary>
         /// Содержит только наименование файла и расширение
         /// </summary>
@@ -131,21 +132,31 @@ namespace FileTool
 
         public List<FilenameInfo> LinkedFiles = new List<FilenameInfo>();
 
-        public FilenameInfo(string pFilename)
+        public FilenameInfo(string pFilename, bool pIsDirectory)
         {
+            IsDirectory = pIsDirectory;
             Fullname = pFilename;
             int lastpos = pFilename.LastIndexOf('\\');
             Name = pFilename.Substring(lastpos + 1);
             Directory = pFilename.Remove(lastpos);
-            lastpos = Name.LastIndexOf('.');
-            if (lastpos >= 0)
-            {
-                NameOnly = Name.Remove(lastpos);
-                Extension = Name.Substring(lastpos + 1);
-            } else {
-                NameOnly = Name;
-                Extension = "";
 
+            if (IsDirectory)
+            {
+                    NameOnly = Name;
+                    Extension = "";            }
+            else
+            {
+                lastpos = Name.LastIndexOf('.');
+                if (lastpos >= 0)
+                {
+                    NameOnly = Name.Remove(lastpos);
+                    Extension = Name.Substring(lastpos + 1);
+                }
+                else
+                {
+                    NameOnly = Name;
+                    Extension = "";
+                }
             }
         }
 

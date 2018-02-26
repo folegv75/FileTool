@@ -86,6 +86,11 @@ namespace FileTool
                     case "MakeWorkList":
                         MakeWorkList(someAction, WorkList);
                         break;
+
+                    case "MakeWorkDirList":
+                        MakeWorkDirList(someAction, WorkList);
+                        break;
+                        
                     case "MakeAddList":
                         MakeAddList(someAction, WorkList);
                         break;
@@ -107,12 +112,54 @@ namespace FileTool
                     case "RenameByFileCSV":
                         RenameByFileCSV(someAction);
                         break;
+                    case "RenameByDirCSV":
+                        RenameByDirCSV(someAction);
+                        break;
 
                 }
             }
 
         }
 
+        /// <summary>
+        /// Переименовывает каталоги по указанному списку. Первым идет иисходное имя каталога файл, через ; новой имя каталога
+        /// Если каталог уже существует, то он пропускается
+        /// </summary>
+        /// <param name="pFileAction"></param>
+        /// <param name="pWorkList"></param>
+        private void RenameByDirCSV(FileAction pFileAction)
+        {
+
+
+            using (StreamReader sr = new StreamReader(pFileAction.SourceFilename))
+            {
+                string inputLine;
+                inputLine = sr.ReadLine();
+                while (inputLine != null)
+                {
+                    if (!string.IsNullOrWhiteSpace(inputLine))
+                    {
+                        var Pos = inputLine.IndexOf(';');
+                        if (Pos >= 0)
+                        {
+                            var SourceName = inputLine.Substring(0, Pos - 1).Trim();
+                            var TargetName = inputLine.Substring(Pos + 1).Trim();
+                            if (Directory.Exists(SourceName))
+                            {
+                                FilenameInfo fi = new FilenameInfo(SourceName, true);
+                                var TargetFullname = fi.Directory + "\\" + TargetName;
+                                if (!Directory.Exists(TargetFullname))
+                                {
+                                    Directory.Move(SourceName, TargetFullname);
+                                }
+                            }
+                            else Console.WriteLine("Not found: {SourceName}");
+                        }
+                    }
+                    inputLine = sr.ReadLine();
+                }
+            }
+        }
 
         /// <summary>
         /// Переименовывает файлы по указанному списку. Первым идет иисходный файл, через ; новой имя файла
@@ -139,7 +186,7 @@ namespace FileTool
                             var TargetName = inputLine.Substring(Pos + 1).Trim();
                             if (File.Exists(SourceName))
                             {
-                                FilenameInfo fi = new FilenameInfo(SourceName);
+                                FilenameInfo fi = new FilenameInfo(SourceName,false);
                                 var TargetFullname = fi.Directory + "\\" + TargetName;
                                 if (!File.Exists(TargetFullname))
                                 {
@@ -177,7 +224,7 @@ namespace FileTool
         }
 
         /// <summary>
-        /// Записывает полное наименованеи файлов и имя файла в формата в формате csv
+        /// Записывает полное наименование файлов и имя файла в формата в формате csv
         /// </summary>
         /// <param name="pFileAction"></param>
         /// <param name="pWorkList"></param>
@@ -198,6 +245,23 @@ namespace FileTool
                 }
             }
         }
+
+        private void MakeWorkDirList(FileAction pFileAction, List<FilenameInfo> pWorkList)
+        {
+            var pFilter = pFileAction.Filter;
+            // получает строки с полным именем файла
+            var Files = Directory.EnumerateDirectories(pFilter.StartDirectory, pFilter.Extension, SearchOption.AllDirectories);
+            foreach (var someFilename in Files)
+            {
+                var someInfo = new FilenameInfo(someFilename, true);
+
+                if (!string.IsNullOrWhiteSpace(pFilter.ExcludeParentDir))
+                    if (someInfo.Directory.EndsWith(pFilter.ExcludeParentDir, StringComparison.OrdinalIgnoreCase)) continue;
+                pWorkList.Add(someInfo);
+
+            }
+        }
+
         /// <summary>
         /// Формирует список файлов для перемещения
         /// </summary>
@@ -208,7 +272,7 @@ namespace FileTool
             var Files = Directory.EnumerateFiles(pFilter.StartDirectory, pFilter.Extension, SearchOption.AllDirectories);
             foreach (var someFilename in Files)
             {
-                var someInfo = new FilenameInfo(someFilename);
+                var someInfo = new FilenameInfo(someFilename, false);
                 if (pFilter.ExcludeFirstDigit)
                     if (char.IsDigit(someInfo.Name[0])) continue;
 
@@ -267,7 +331,7 @@ namespace FileTool
                 if (AddFiles != null)
                     foreach (var someFilename in AddFiles)
                     {
-                        var AddInfo = new FilenameInfo(someFilename);
+                        var AddInfo = new FilenameInfo(someFilename, false);
                         if (pFileAction.JoinByName)
                         {
                             if (AddInfo.NameOnly.StartsWith(someFileInfo.NameOnly, StringComparison.OrdinalIgnoreCase)) someFileInfo.LinkedFiles.Add(AddInfo);
